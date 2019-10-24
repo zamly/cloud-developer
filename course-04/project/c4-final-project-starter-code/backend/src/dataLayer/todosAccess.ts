@@ -15,8 +15,9 @@ export class TodosAccess {
     private readonly docClient: DocumentClient = createDynamoDBClient(),
     private readonly s3 = createS3Client(),
     private readonly todosTable = process.env.TODOS_TABLE,
+    private readonly todosTableIndex = process.env.USER_ID_INDEX,
     private readonly todosS3BucketName = process.env.TODOS_IMAGES_S3_BUCKET,
-    private readonly urlExpiration = process.env.TODOS_TABLE) {
+    private readonly urlExpiration = process.env.SIGNED_URL_EXPIRATION) {
   }
 
   async getAllTodos(userId: string): Promise<TodoItem[]> {
@@ -24,6 +25,7 @@ export class TodosAccess {
 
     const result = await this.docClient.query({
       TableName: this.todosTable,
+      IndexName: this.todosTableIndex,
       KeyConditionExpression: 'userId = :userId',
       ExpressionAttributeValues: {
         ':userId': userId
@@ -41,8 +43,8 @@ export class TodosAccess {
     const result = await this.docClient.get({
       TableName: this.todosTable,
       Key: {
-        userId,
-        todoId
+        "userId": userId,
+        "todoId": todoId
       }
     }).promise()
 
@@ -69,11 +71,14 @@ export class TodosAccess {
         "userId": userId,
         "todoId": todoId
       },
-      UpdateExpression: "set name = :r, dueDate=:p, done=:a",
+      UpdateExpression: "set #name = :r, dueDate=:p, done=:a",
       ExpressionAttributeValues: {
         ":r": updateItem.name,
         ":p": updateItem.dueDate,
         ":a": updateItem.done
+      },
+      ExpressionAttributeNames:{
+        "#name": "name"
       },
       ReturnValues: "UPDATED_NEW"
     }).promise()
@@ -87,8 +92,8 @@ export class TodosAccess {
     await this.docClient.delete({
       TableName: this.todosTable,
       Key: {
-        userId,
-        todoId
+        "userId": userId,
+        "todoId": todoId
       }
     }).promise()
   }
@@ -117,13 +122,6 @@ function createDynamoDBClient() {
 }
 
 function createS3Client() {
-  if (process.env.IS_OFFLINE) {
-    logger.info('Creating a local S3 instance')
-    return new AWS.S3({
-      signatureVersion: 'v4'
-    })
-  }
-
   return new XAWS.S3({
     signatureVersion: 'v4'
   })

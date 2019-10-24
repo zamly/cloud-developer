@@ -6,7 +6,7 @@ import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
 import * as uuid from 'uuid'
 
 const todosAccess = new TodosAccess()
-const todoBucketName = process.env.S3_BUCKET
+const todoBucketName = process.env.TODOS_IMAGES_S3_BUCKET
 
 export async function getAllTodoItems(userId: string): Promise<TodoItem[]> {
     return todosAccess.getAllTodos(userId)
